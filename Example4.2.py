@@ -47,6 +47,8 @@ ap5 = aw5 + ae5 - Sp5;
 
 """ Equation's system assembly """
 i = 0;
+j = dx/2;
+X = np.zeros((n+2,1));
 M = np.zeros((n,n));
 S = np.zeros((n,1));
 
@@ -55,16 +57,21 @@ while i < n :
         M[i,i] = ap1
         M[i,i+1] = -ae1
         S[i,:] = Su1
+        X[i+1,:] = j
     if i == n-1 :
         M[i,i] = ap5
         M[i,i-1] = -aw5
         S[i,:] = Su5
+        X[i+2,:] = j + dx/2
     if i > 0 and i < n-1:
         M[i,i] = ap
         M[i,i+1] = -aw
         M[i,i-1] = -ae
         S[i,:] = Su
-    i=i+1
+        X[i+1,:] = j
+        X[i+2,:] = j + dx
+    i = i+1
+    j = j + dx
 
 """ System Solutions """
 T = solve(M,S)-273.15;
