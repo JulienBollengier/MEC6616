@@ -11,8 +11,6 @@ import matplotlib.pyplot as plt
 """ Example 4.1 """
 """ Source-free heat conduction in an insulated rod """
 
-
-
 """ Function to calculate the temperature and the distance where the temperature is calculated"""
 """ Explanation of the different parameters :
 # n is the number of points
