@@ -4,7 +4,9 @@ import numpy as np
 from numpy.linalg import solve
 import matplotlib.pyplot as plt
 
-
+""" Ecrit par """
+""" Julien Bollengier - """
+""" Tiboeuf Christopher - 2362869 """
 
 """ Example 4.3 """
 """ Cooling of a circular fin by means of convective heat transfer along its length. """
