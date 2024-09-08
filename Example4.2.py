@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 """ LAP1 """
-
-""" Example 4.1 """
-""" Source heat conduction in an insulated rod """
 import numpy as np
 from numpy.linalg import solve
 import matplotlib.pyplot as plt
 
+""" Ecrit par """
+""" Julien Bollengier - """
+""" Tiboeuf Christopher - 2362869 """
 
+""" Example 4.2 """
+""" Source heat conduction in an insulated rod """
 
 
 """ Function to calculate the temperature and the distance where the temperature is calculated"""
