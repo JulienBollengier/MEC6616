@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """ LAP1 """
-
-""" Example 4.1 """
-""" Cooling of a circular fin by means of convective heat transfer along its length. """
 import numpy as np
 from numpy.linalg import solve
 import matplotlib.pyplot as plt
 
+
+
+""" Example 4.3 """
+""" Cooling of a circular fin by means of convective heat transfer along its length. """
 
 """ Function to calculate the temperature and the distance where the temperature is calculated"""
 """ Explanation of the different parameters :
