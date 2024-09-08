@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 # A is the cross-section of the rod [m^2]
 # Ta and Tb are the temperature respectively at the begining and the end of the rod"""
 
-
 def Temperature(n,L,k,A,Ta,Tb):
     """ Calculated constants """
     dx = L/n; # Distance between nodes [m]
