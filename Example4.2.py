@@ -5,7 +5,7 @@ from numpy.linalg import solve
 import matplotlib.pyplot as plt
 
 """ Ecrit par """
-""" Bollengier Julien - """
+""" Bollengier Julien - 2362814 """
 """ Tiboeuf Christopher - 2362869 """
 
 """ Example 4.2 """
