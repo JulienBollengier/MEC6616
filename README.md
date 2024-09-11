@@ -1,4 +1,4 @@
-Convection-diffusion 1D
+**CONVECTION - DIFFUSION 1D**
 
 On désire calculer la solution numérique de l’équation de convection-diffusion en 1D : $\frac{d}{dx}(\rho u \phi)  = \frac{d}{dx}\left(\Gamma \frac{d \phi}{dx}\right)$ 
 
@@ -14,7 +14,7 @@ On calculera la solution numérique à l’aide des schémas Central et Upwind, 
 2. Écrire un programme Python qui forme le système matriciel et qui le résout pour différentes valeurs des paramètres pour des conditions limites de Dirichlet aux deux extrémités. Reproduire les exemples 5.1 et 5.2 du livre de Versteeg et Malalasekera.
 3. Déterminez l’ordre de convergence observé des méthodes Upwind et Centré
 
-DÉPOT SUR MOODLE
+**DÉPOT SUR MOODLE**
 
 Déposer votre programme Python sur MOODLE avant le Lundi 16 septembre 23h55. Je vais exécuter le programme et je vais vérifier que :
 - Votre programme fonctionne tel qu’attendu
