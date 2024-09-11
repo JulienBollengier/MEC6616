@@ -1,24 +1,24 @@
-# MEC6616
+Convection-diffusion 1D
 
-COURSE OBJECTIVES
-- Present the basics of finite volume methods used in numerical aerodynamics.
-- Develop the ability to program finite volume methods for the incompressible regime.
-- Develop the ability to analyze the numerical solutions obtained.
+On désire calculer la solution numérique de l’équation de convection-diffusion en 1D : $\frac{d}{dx}(\rho u \phi)  = \frac{d}{dx}\left(\Gamma \frac{d \phi}{dx}\right)$ 
 
-THE DIFFERENT WORKS
+On calculera la solution numérique à l’aide des schémas Central et Upwind, tels que présentés par Versteeg aux sections 5.3 et 5.6.
+1. Trouver les coefficients $a_W$, $a_E$, $a_P$, $S_u$ et $S_p$ pour un cellule $P$ pour les cas de figures suivants :
 
-_Laboratoires d'Apprentissage en Programmation_
-- **LAP1**: 1D conduction
-- **LAP2**: Conduction/Convection 1D
-- **LAP3**: 2D data structures
-- **LAP4**: Momentum equations
-- **LAP5**: Rhie-Chow interpolation
-- **LAP6**: Pressure correction
+- Cellule au centre, schéma centré et upwind
+- Cellule en frontière gauche, C.L. Dirichlet, schéma centréc.
+- Cellule en frontière gauche, C.L. Dirichlet, schéma upwind (u positif)
+- Cellule en frontière droite, C.L. Dirichlet, schéma upwind (u positif)
+- Cellule en frontière droite, C.L. Dirichlet, schéma centré 
 
-_Travaux en Printique de Programmation_
-- **TPP1**: 2D conduction
-- **TPP2**: 2D Conduction/Convection
-- **TPP3**: SIMPLE 2D algorithm
+2. Écrire un programme Python qui forme le système matriciel et qui le résout pour différentes valeurs des paramètres pour des conditions limites de Dirichlet aux deux extrémités. Reproduire les exemples 5.1 et 5.2 du livre de Versteeg et Malalasekera.
+3. Déterminez l’ordre de convergence observé des méthodes Upwind et Centré
 
-_Individual Exams_
-- **INTRA**: Theoretical and practical exam (Use of the TPP2 code)
+DÉPOT SUR MOODLE
+
+Déposer votre programme Python sur MOODLE avant le Lundi 16 septembre 23h55. Je vais exécuter le programme et je vais vérifier que :
+- Votre programme fonctionne tel qu’attendu
+- Votre programme est facile à comprendre
+- Le programme trace le graphe de T(x) numérique et analytique
+- Le programme trace le graphe ln(E) vs ln(1/Nx)
+- Le programme calcule et affiche l’ordre de convergence observé
