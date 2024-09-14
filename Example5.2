@@ -141,7 +141,10 @@ def main():
     valeurs_Nx = [5, 10, 20, 40, 80]  # Nombre de points de grille pour l'étude de convergence
     
     # Convergence schéma upwind
-    etude_convergence(valeurs_Nx, L, u, rho, Gamma, phi_0, phi_L, schema)
+    etude_convergence(valeurs_Nx, L, u, rho, Gamma, phi_0, phi_L, schema='upwind')
+    
+    # Convergence schéma centré
+    etude_convergence(valeurs_Nx, L, u, rho, Gamma, phi_0, phi_L, schema='centre')
     
 
 # Appel de la fonction principale
