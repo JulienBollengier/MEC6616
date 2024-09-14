@@ -1,0 +1,149 @@
+# -*- coding: utf-8 -*-
+"""
+                -- LAP2 MEC6616 Polytechnique Montreal --
+
+    * Présentation du LAP2 :
+        + Ce Laboratoire d'Apprentissage en Programmation à pour but de caluler
+        la solution numérique de l'équation de convection-diffusion en 1D. 
+        + Cette solution numérique sera obtenue grâce aux schémas Central et 
+        Upwind avec une condition aux limites de Dirichlet. 
+        + Cette solution sera comparée avec la solution exacte.
+
+    * Ecrit par :
+        + Bollengier Julien - 2362814
+        + Tiboeuf Christopher - 2362869
+    
+    * Date :
+        + Session d'automne 2024
+
+"""
+###############################################################################
+""" DEBUT DU PROGRAMME """
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Fonction solution analytique
+def solution_analytique(x, u, L, phi_0, phi_L, rho, Gamma):
+    return phi_0 + (phi_L - phi_0) * (np.exp(rho * u * x / Gamma) - 1) / (np.exp(rho * u * L / Gamma) - 1)
+
+# Fonction équation numérique schéma centré ou upwind
+def convection_diffusion_1D(Nx, L, u, rho, Gamma, phi_0, phi_L, schema='centre'):
+    dx = L / (Nx - 1)  # Taille cellule
+    a_O = np.zeros(Nx)  # Coefficient pour cellule à gauche
+    a_E = np.zeros(Nx)  # Coefficient pour cellule à droite
+    a_P = np.zeros(Nx)  # Coefficient pour cellule centrale
+    Su = np.zeros(Nx)   # Terme source
+    
+    # Coefficients cellules internes
+    for i in range(1, Nx-1):
+        if schema == 'centre':
+            a_O[i] = Gamma/dx + rho*u/2
+            a_E[i] = Gamma/dx - rho*u/2
+        elif schema == 'upwind':
+            a_O[i] = Gamma/dx + rho*u
+            a_E[i] = Gamma/dx
+        
+        a_P[i] = a_O[i] + a_E[i]
+
+    # Conditions limites 
+    a_P[0] = 1
+    a_P[-1] = 1
+    Su[0] = phi_0
+    Su[-1] = phi_L
+
+    # Assemblage matrice système
+    A = np.zeros((Nx, Nx))
+    b = np.zeros(Nx)
+    
+    for i in range(1, Nx-1):
+        A[i, i-1] = -a_O[i]
+        A[i, i] = a_P[i]
+        A[i, i+1] = -a_E[i]
+    
+    # Application conditions limites
+    A[0, 0] = 1
+    A[-1, -1] = 1
+    b[0] = phi_0
+    b[-1] = phi_L
+
+    # Résolution système linéaire
+    phi_numerique = np.linalg.solve(A, b)
+    
+    return phi_numerique
+
+# Fonction plot résultats numériques et analytiques
+def tracer_resultats(x, phi_numerique, phi_analytique, u, L, phi_0, phi_L,schema):
+    plt.plot(x, phi_numerique, 'ro-', label='Solution Numérique')
+    plt.plot(x, phi_analytique, 'b-', label='Solution Analytique')
+    plt.xlabel('x')
+    plt.ylabel('phi')
+    plt.legend()
+    plt.title(f'Solution pour u = {u} m/s pour schema {schema}')
+    plt.show()
+
+# Fonction erreur entre solution numérique et analytique
+def calculer_erreur(phi_numerique, phi_analytique):
+    return np.linalg.norm(phi_numerique - phi_analytique, ord=2) / np.linalg.norm(phi_analytique, ord=2)
+
+# Fonction étude de convergence tracer erreur en fonction de la taille de la grille
+def etude_convergence(valeurs_Nx, L, u, rho, Gamma, phi_0, phi_L, schema):
+    erreurs = []
+    valeurs_dx = []
+    
+    for Nx in valeurs_Nx:
+        x = np.linspace(0, L, Nx)
+        phi_numerique = convection_diffusion_1D(Nx, L, u, rho, Gamma, phi_0, phi_L, schema)
+        phi_analytique = solution_analytique(x, u, L, phi_0, phi_L, rho, Gamma)
+        erreur = calculer_erreur(phi_numerique, phi_analytique)
+        erreurs.append(erreur)
+        valeurs_dx.append(L / (Nx - 1))
+    
+    # Tracer ln(E) & ln(Δx)
+    plt.plot(np.log(valeurs_dx), np.log(erreurs), 'o-')
+    plt.xlabel('ln(Δx)')
+    plt.ylabel('ln(Erreur)')
+    plt.title(f'Courbe de convergence ({schema} schema)')
+    plt.show()
+
+    # Estimation de l'ordre de convergence
+    p = np.polyfit(np.log(valeurs_dx), np.log(erreurs), 1)[0]
+    print(f'Ordre de convergence: {p}')
+
+# Fonction principale
+def main():
+    # Paramètres
+    L = 1.0  # Longueur domaine
+    rho = 1.0  # Densité
+    Gamma = 0.1  # Coefficient diffusion
+    phi_0 = 1.0  # Condition limite x=0
+    phi_L = 0.0  # Condition limite x=L
+
+    # Cas 1 (schéma upwind) : u = 0.1 m/s avec Nx = 5
+    u = 0.1
+    Nx = 5  # Nombre de points de grille
+    x = np.linspace(0, L, Nx)
+
+    # Solution numérique (schéma upwind)
+    schema='upwind'
+    phi_numerique_upwind = convection_diffusion_1D(Nx, L, u, rho, Gamma, phi_0, phi_L, schema)
+    # Solution analytique
+    phi_analytique = solution_analytique(x, u, L, phi_0, phi_L, rho, Gamma)
+    # Tracer les résultats pour le schéma upwind
+    tracer_resultats(x, phi_numerique_upwind, phi_analytique, u, L, phi_0, phi_L,schema)
+
+    # Cas 2 (schéma upwind) : u = 2.5 m/s avec Nx = 5
+    u = 2.5
+    phi_numerique_upwind = convection_diffusion_1D(Nx, L, u, rho, Gamma, phi_0, phi_L, schema)
+    phi_analytique = solution_analytique(x, u, L, phi_0, phi_L, rho, Gamma)
+    tracer_resultats(x, phi_numerique_upwind, phi_analytique, u, L, phi_0, phi_L,schema)
+
+    # Étude de convergence schémas upwind et centré
+    valeurs_Nx = [5, 10, 20, 40, 80]  # Nombre de points de grille pour l'étude de convergence
+    
+    # Convergence schéma upwind
+    etude_convergence(valeurs_Nx, L, u, rho, Gamma, phi_0, phi_L, schema)
+    
+
+# Appel de la fonction principale
+main()
+
