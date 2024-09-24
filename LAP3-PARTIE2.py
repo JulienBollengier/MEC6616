@@ -34,7 +34,7 @@ mesh_parameters = {'mesh_type': 'TRI', 'lc': 0.5}
 mesh_obj = mesher.rectangle([0.0, 1.0, 0.0, 1.0], mesh_parameters)
 conec = MeshConnectivity(mesh_obj)
 conec.compute_connectivity()
-plotter.plot_mesh(mesh_obj)
+#plotter.plot_mesh(mesh_obj)
 
 
 """ Fonction permettant de vérifier si le maillage générer respecte la relation d'Euler """
@@ -94,17 +94,25 @@ def Divergence(msh_obj):
     
 
 """ Fonction permettant de déterminer le gradient au centre des volumes par la méthode des moindres-carrés """
-def Gradient(msh_obj, phi0):
+def Gradient(msh_obj, flux, conditions_limites):
     ALS = np.zeros((2,2));
-    NTRI = len(msh_obj.element_to_nodes_start);
-    B = np.zeros((2,1));
+    NTRI = len(msh_obj.element_to_nodes_start)-1;
+    B = np.zeros((NTRI,2));
+    ATA = np.zeros((NTRI,2,2));
+    GRAD = np.zeros((NTRI,2));
+    phi = np.zeros((NTRI,1));
     for i in range(len(msh_obj.face_to_nodes)):
         # Arrête à l'étude
         arrete = msh_obj.face_to_nodes[i];
         
         # Elements à gauche et à droite de l'arrête étudiée
-        element_gauche = arrete[0];
-        element_droite = arrete[1];
+        elements = msh_obj.face_to_elements[i];
+        element_gauche = elements[0];
+        element_droite = elements[1];
+        
+        # Noeuds de l'arrete
+        N1 = arrete[0];
+        N2 = arrete[1];
         
         # Indice des noeuds des elements de gauche et de droite de l'arrête
         start_gauche = msh_obj.element_to_nodes_start[element_gauche];
@@ -126,30 +134,68 @@ def Gradient(msh_obj, phi0):
         
         # Coordonnées du centre de l'arrête
         if element_droite == -1 :
-            XCG_droite = 1/2*(msh_obj.node_to_xcoord[arrete[0]] + msh_obj.node_to_xcoord[arrete[1]])
-            YCG_droite = 1/2*(msh_obj.node_to_ycoord[arrete[0]] + msh_obj.node_to_ycoord[arrete[1]])
+            XCG_droite = 1/2*(msh_obj.node_to_xcoord[N1] + msh_obj.node_to_xcoord[N2])
+            YCG_droite = 1/2*(msh_obj.node_to_ycoord[N1] + msh_obj.node_to_ycoord[N2])
+        
+        # Vecteur normal à l'arrête externe
+        XN1 = msh_obj.node_to_xcoord[N1];
+        YN1 = msh_obj.node_to_ycoord[N1];
+        XN2 = msh_obj.node_to_xcoord[N2];
+        YN2 = msh_obj.node_to_ycoord[N2];
+
+        n = [-(YN2-YN1) , (XN2-XN1)];
+        
+        
         
         # DX et DY à gauche et à droite de l'arrête
-        DX_droite = XCG_gauche - XCG_droite;
-        DY_droite = YCG_gauche - YCG_droite;
-            
-        DX_gauche = XCG_droite - XCG_gauche;
-        DY_gauche = YCG_droite - YCG_gauche;
+        DX = XCG_droite - XCG_gauche;
+        DY = YCG_droite - YCG_gauche;
+        if element_droite == -1 :
+            if conditions_limites == "Neumann" :
+                DX = (DX*n[0] + DY*n[1])*n[0];
+                DY = (DX*n[0] + DY*n[1])*n[1];
         
-        DPHI_gauche = phi0;
         
-
-        ALS[0,0] = DX_gauche * DX_gauche;
-        ALS[1,0] = DX_gauche * DY_gauche;
-        ALS[0,1] = DY_gauche * DX_gauche;
-        ALS[1,1] = DY_gauche * DY_gauche;
+        # Constuction de la matrice ATA
+        ALS[0,0] = DX * DX;
+        ALS[1,0] = DX * DY;
+        ALS[0,1] = DY * DX;
+        ALS[1,1] = DY * DY;
         
-        B[0,:] = DX_gauche * DPHI_gauche;
-        B[1,:] = DY_gauche * DPHI_gauche;
+        ATA[element_gauche] += ALS;
+        ATA[element_droite] += ALS;
         
-        ATAI = np.linalg.inv(ALS);
         
-        GRAD = np.dot(ATAI,B)
+        # Calcul de la variation de flux
+        if element_droite == -1 :
+            if conditions_limites == "Dirichlet":
+                phi_droite = flux;
+                phi_gauche = phi[element_gauche];
+                DPHI = phi_droite - phi_gauche;
+                
+            if conditions_limites == "Neumann":
+                DPHI = flux*((XCG_droite-XCG_gauche)*n[0] + (YCG_droite-YCG_gauche)*n[1])
+                
+        if element_droite != -1 :
+            DPHI = phi[element_droite] - phi[element_gauche];
+        
+        # Diffusion du flux dans l'élément de gauche
+        phi[element_gauche] = DPHI;
+        
+        # Constuction de la matrice B       
+        B[element_gauche,0] = B[element_gauche,0] + DX * DPHI;
+        B[element_gauche,1] = B[element_gauche,1] + DY * DPHI;
+        B[element_droite,0] = B[element_droite,0] + DX * DPHI;
+        B[element_droite,1] = B[element_droite,1] + DY * DPHI;
+        
+        ## Fin de la boucle
+    
+    # Inversion de la matrice ATA
+    ATAI = np.linalg.inv(ATA);
+    
+    # Calcul du Gradient de chaque élément
+    for j in range(NTRI):
+        GRAD[j] = np.dot(ATAI[j],B[j]);
         
     return GRAD
         
