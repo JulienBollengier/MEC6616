@@ -1,0 +1,194 @@
+import sympy as sp
+import numpy as np
+import pyvista as pv
+import pyvistaqt as pvQt
+from meshGenerator import MeshGenerator
+from meshConnectivity import MeshConnectivity
+from meshPlotter import MeshPlotter
+
+mesher = MeshGenerator()
+plotter = MeshPlotter()
+
+print('Rectangle : maillage non structuré avec des quadrilatères')
+mesh_parameters = {'mesh_type': 'TRI', 'lc': 0.5}
+mesh_obj = mesher.rectangle([0.0, 1.0, 0.0, 1.0], mesh_parameters)
+conec = MeshConnectivity(mesh_obj)
+conec.compute_connectivity()
+#plotter.plot_mesh(mesh_obj)
+
+
+""" Fonction permettant de vérifier si le maillage généré respecte la relation d'Euler """
+def Euler(coordonnees, mesh_parameters, mesh_type, rayon):
+    # Maillage en fonction du type de maillage sélectionné
+    if mesh_type == 'rectangle':
+        msh_obj = mesher.rectangle(coordonnees, mesh_parameters)
+        trous = 0
+    elif mesh_type == 'back_step':
+        msh_obj = mesher.back_step(coordonnees[0], coordonnees[1], coordonnees[2], coordonnees[3], mesh_parameters)
+        trous = 0
+    elif mesh_type == 'circle':
+        msh_obj = mesher.circle(coordonnees, rayon, mesh_parameters)
+        trous = 1
+    elif mesh_type == 'quarter_annular':
+        msh_obj = mesher.quarter_annular(coordonnees[0], coordonnees[1], mesh_parameters)
+        trous = 0
+
+    # Connectivité du maillage
+    conec = MeshConnectivity(msh_obj)
+    conec.compute_connectivity()
+
+    # Relation d'Euler
+    nb_sommets = msh_obj.node_to_xcoord
+    nb_elmts = msh_obj.element_to_nodes_start
+    nb_arretes = msh_obj.face_to_elements
+    Euler = (len(nb_elmts)-1) - len(nb_arretes) + len(nb_sommets) + trous
+
+    # Renvoie un booléen en sortie de la fonction
+    return Euler == 1
+
+
+""" Fonction permettant de vérifier le respect d'un champ nul pour la divergence d'un champ constant """
+def Divergence(msh_obj):
+    div = 0
+    divd = 0
+    divg = 0
+    for i in range(len(msh_obj.face_to_nodes)):
+        arrete = msh_obj.face_to_nodes[i]
+
+        XN1 = msh_obj.node_to_xcoord[arrete[0]]
+        YN1 = msh_obj.node_to_ycoord[arrete[0]]
+        XN2 = msh_obj.node_to_xcoord[arrete[-1]]
+        YN2 = msh_obj.node_to_ycoord[arrete[-1]]
+
+        N1N2 = [XN2-XN1, YN2-YN1]
+        n = [-(YN2-YN1), (XN2-XN1)]
+
+        flux = np.dot(N1N2, n)
+        if arrete[-1] == -1:
+            div = div + flux
+        else:
+            divd = divd - flux
+            divg = divg + flux
+            div = divd + divg
+    return div == 0
+
+
+""" Fonction permettant de déterminer le gradient au centre des volumes par la méthode des moindres-carrés """
+def Gradient(msh_obj, flux, conditions_limites):
+    ALS = np.zeros((2, 2))
+    NTRI = len(msh_obj.element_to_nodes_start) - 1
+    B = np.zeros((NTRI, 2))
+    ATA = np.zeros((NTRI, 2, 2))
+    GRAD = np.zeros((NTRI, 2))
+    phi = np.zeros((NTRI, 1))
+    
+    for i in range(len(msh_obj.face_to_nodes)):
+        arrete = msh_obj.face_to_nodes[i]
+        elements = msh_obj.face_to_elements[i]
+        element_gauche = elements[0]
+        element_droite = elements[1]
+
+        # Noeuds de l'arête
+        N1 = arrete[0]
+        N2 = arrete[1]
+
+        # Coordonnées du centre des cellules
+        XCG_gauche = np.mean(msh_obj.node_to_xcoord[msh_obj.element_to_nodes[element_gauche]])
+        YCG_gauche = np.mean(msh_obj.node_to_ycoord[msh_obj.element_to_nodes[element_gauche]])
+
+        if element_droite != -1:
+            XCG_droite = np.mean(msh_obj.node_to_xcoord[msh_obj.element_to_nodes[element_droite]])
+            YCG_droite = np.mean(msh_obj.node_to_ycoord[msh_obj.element_to_nodes[element_droite]])
+        else:
+            XCG_droite = np.mean([msh_obj.node_to_xcoord[N1], msh_obj.node_to_xcoord[N2]])
+            YCG_droite = np.mean([msh_obj.node_to_ycoord[N1], msh_obj.node_to_ycoord[N2]])
+
+        DX = XCG_droite - XCG_gauche
+        DY = YCG_droite - YCG_gauche
+
+        # Construction de la matrice ATA
+        ALS[0, 0] = DX * DX
+        ALS[1, 0] = DX * DY
+        ALS[0, 1] = DY * DX
+        ALS[1, 1] = DY * DY
+
+        ATA[element_gauche] += ALS
+        if element_droite != -1:
+            ATA[element_droite] += ALS
+
+        # Calcul de la variation de flux
+        if element_droite == -1:
+            if conditions_limites == "Dirichlet":
+                phi_droite = flux
+                DPHI = phi_droite - flux[element_gauche]
+            elif conditions_limites == "Neumann":
+                DPHI = flux * (DX * DY)  # Cas Neumann
+        else:
+            DPHI = flux[element_droite] - flux[element_gauche]
+
+        B[element_gauche, 0] += DX * DPHI
+        B[element_gauche, 1] += DY * DPHI
+        if element_droite != -1:
+            B[element_droite, 0] += DX * DPHI
+            B[element_droite, 1] += DY * DPHI
+
+    # Inversion de la matrice ATA
+    ATAI = np.linalg.inv(ATA)
+
+    # Calcul du gradient dans chaque élément
+    for j in range(NTRI):
+        GRAD[j] = np.dot(ATAI[j], B[j])
+
+    return GRAD
+
+
+""" Fonction pour initialiser un champ linéaire sur le maillage """
+def initialiser_champ_lineaire(msh_obj):
+    # Champ linéaire : phi(x, y) = a * x + b * y + c
+    a = 1.0  # Coefficient pour x
+    b = 2.0  # Coefficient pour y
+    c = 0.0  # Constante
+    
+    phi = np.zeros((len(msh_obj.element_to_nodes_start)-1, 1))
+    
+    # Calcul de phi au centre des éléments
+    for i in range(len(msh_obj.element_to_nodes_start)-1):
+        start = msh_obj.element_to_nodes_start[i]
+        fin = msh_obj.element_to_nodes_start[i + 1]
+        noeuds = msh_obj.element_to_nodes[start:fin]
+        
+        # Coordonnées du centre de l'élément
+        XCG = np.mean(msh_obj.node_to_xcoord[noeuds])
+        YCG = np.mean(msh_obj.node_to_ycoord[noeuds])
+        
+        # Calcul de phi pour ce centre
+        phi[i] = a * XCG + b * YCG + c
+    
+    return phi, np.array([a, b])  # Le gradient analytique est [a, b]
+
+
+""" Fonction pour calculer l'erreur entre le gradient numérique et le gradient analytique """
+def calculer_erreur(grad_numerique, grad_analytique):
+    # Calcul de l'erreur sous forme de norme L2
+    erreur = np.linalg.norm(grad_numerique - grad_analytique, axis=1)
+    erreur_norme_L2 = np.mean(erreur)  # Moyenne de l'erreur sur tous les éléments
+    
+    return erreur_norme_L2
+
+
+# Paramètres du maillage
+mesh_parameters = {'mesh_type': 'TRI', 'lc': 0.1}
+
+# Créer un maillage
+mesh_obj = mesher.rectangle([0.0, 1.0, 0.0, 1.0], mesh_parameters)
+conec = MeshConnectivity(mesh_obj)
+conec.compute_connectivity()
+
+# Initialiser un champ linéaire
+flux, grad_analytique = initialiser_champ_lineaire(mesh_obj)
+
+# Calculer le gradient par la méthode Least-Square
+grad_numerique = Gradient(mesh_obj, flux, conditions_limites="Dirichlet")
+
+# Calculer l'erreur entre le gradient numérique et le gradient analytique
+erreur_norme_L2 = calculer_erreur(grad_numerique, grad_analytique)
